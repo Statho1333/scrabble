@@ -193,6 +193,15 @@ class Game():
 
 
 class SakClass():
+    """
+    Class that represents the bag of letters, containing 104 greek letters.
+
+    Attributes:
+    - lets: A dictionary represanting the occurances of each letter and the points of the letters, if used in a word
+
+    Example:
+    - "A" : [12,1] -> letter "A" is 12 times in the sak, awarding 1 point.
+    """
 
     lets = {'Α':[12,1],'Β':[1,8],'Γ':[2,4],'Δ':[2,4],'Ε':[8,1],
         'Ζ':[1,10],'Η':[7,1],'Θ':[1,10],'Ι':[8,1],'Κ':[4,2],
@@ -202,55 +211,139 @@ class SakClass():
         }
     
     def __init__(self):
+        """
+        Constructor of SakClass.
+        Randomizes a sak.
+        """
         self.sak = self.randomizeSak(SakClass.lets)
 
     #takes as input a random dictionary of letters, flattens it and shuffles it
-    def randomizeSak(self, letters: dict):
+    def randomizeSak(self, letters: dict) -> list:
+        """
+        Function that flattens the letters dictionary, converting it to a string, and shuffles it,cdepending on the occurences of each letter
+
+        Attributes:
+        - letters: the class attribute lets dictionary
+
+        Returns:
+        sak: a shuffled list of letters
+        """
         sak = [letter for letter, (count, points) in letters.items() for _ in range(count)]
         random.shuffle(sak)
         return sak
 
     #removes n letters from sak
     def getLetters(self, n: int) -> list:
+        """
+        Function that removes n number of letters from the sak object.
+
+        Parameters:
+        - n: int, the number of letters to remove
+
+        Return: a list of length n random letters from sak.
+        """
         letters = self.sak[:n]
         self.sak = self.sak[n:]
         return letters
     
     #places back the letters, expecting a list to be given
     def putBackLetters(self,letters: list[str]):
+        """
+        A function that concats sak list with a given list containing str's that represent letters
+
+        Parameters:
+        - letters: list[str] representing letters
+
+        -Returns:
+        The self.sak shuffled
+
+        Example:
+        sak = [a,b,c], letters = [d,e,f] -> self.sak = [c,a,d,f,e,b]
+        """
         self.sak.extend(letters)
         random.shuffle(self.sak)
 
     #returns the len of the sak
     def __len__(self) -> int:
+        """
+        Overloads build in len() function
+
+        Returns:
+        The length of the sak object (how many letters contains the list sak)
+        """
         return len(self.sak)
 
 
 class Player():
+    """
+    Basic class of players, from which derives Human and Computer
+
+    """
     def __init__(self, name):
+        """
+        Attributes:
+        - name: name of the player
+        - hand: a list of letters representing the scrabble letter tiles
+        - score: the score that the player has gathered
+        """
+    
         self.name = name
         self.hand = []
         self.score = 0
 
     def __repr__(self):
+        """
+        Prints basic information for the player, such as the name, the score and the list of the hand
+        """
         print(f'******************************************************************')
         print(f'*** Παίκτης: {self.name} *** Σκορ: {self.getScore()}')
         print(f'Γράμματα: {self.hand}')
         print(f'\n*****************************************************************')
 
     def getScore(self):
+        """
+        Getter for score
+        """
         return self.score
     
     def addScore(self,points):
+        """
+        Adds points to the score of the player
+        """
         self.score+=points
 
     def calculateScore(self,word: str) -> int:
+        """
+        Calculates the points of a word
+
+        Returns:
+        -int: the sum of the letters
+
+        Example:
+        - H=8, I=2, calculateScore('hi') = 10
+        """
         return sum(SakClass.lets.get(letter)[1] for letter in word)
     
     def __len__(self):
+        """
+        Overloads the build in len() function, to return the length of the hand of a player
+        
+        Returns:
+        - int: the length of the self.hand
+        """
         return len(self.hand)
     
     def __sub__(self,word: str):
+        """
+        Overloads subtraction operator. Removes a sub list from a list
+
+        Returns: 
+        - self: a new list, without the letters of the word given
+
+        Example:
+        -[b,a,n,a,n,a] - 'anna' -> [b,a]
+
+        """
         newHand = self.hand.copy()
         for letter in word:
             newHand.remove(letter)
@@ -258,20 +351,55 @@ class Player():
         return self
     
     @abstractmethod
+
     def play(self,sak,word_set):
         pass
 
 
 
 class Human(Player):
+    """
+    Class that represents a human player. Inherits attributes and functions from Player Class.
+    Calls the init function of the Player class
+    """
     def __init__(self,name):
+        """
+        Constructor of the class.
+
+        Attributes:
+        - name: The name of the player
+        """
         super().__init__(name)
 
     def isValidWord(self,word: str) -> bool:
+        """
+        Checks if a word can be produced from the hand of the player
+
+        Parameters:
+        - word: the str to check
+
+        Returns:
+        - True if str can be produced from hand, False otherwise
+
+        -Example:
+        - 'anna' , [b,a,n,a,n,a] -> True
+        """
         return Counter(word)<= Counter(self.hand)
 
-    def play(self, word:str, validWords: set) -> bool:
+    def play(self, word:str, validWords: set) -> set:
+        """
+        Overides play function from Player Class. Checks what action the Player is gonna pick.
 
+        Parameteres:
+        - word: string to play
+        - validWords: set of valid words (from 'gree7.txt')
+
+        Returns:
+        - False, 'Change': if 'P' was given as parameter from the word arg
+        - False, 'End': if 'Q' was given as parameter from the word arg
+        - True, 'Valid': if word can derive from hand and it is a word of the greek lang
+        - True, 'Invalid': if either word cant derive from hand or is not a word from the greek lang
+        """
         match word:
                 case 'P':
                     return False, 'Change'
@@ -284,11 +412,32 @@ class Human(Player):
                     return True, 'Invalid'
 
 class Computer(Player):
+    """
+    Class that represents the computer player. Inherits attributes and functions from Player Class
+    """
     def __init__(self, name='C3PO'):
+        """
+        Constructor of the class. Default value for name = 'C3PO'. Sets the difficulty of the game
+
+        Attributes:
+        - name: the name of the droid
+        - mode: the difficulty of the game. Difficulty is from algo's Min, Max, Smart
+        """
         super().__init__(name)
         self.mode = self.pickMode(self.name)
 
     def pickMode(self, name: str) -> str:
+        """
+        Sets the difficulty of the game, based from the droid name
+
+        Parameteres:
+        - name: str that represents the name of the droid
+
+        Returns:
+        - "min": if the given name was "C3PO" (easy difficulty)
+        - "max": if the given name was "R2D2" (medium difficulty)
+        - "smart": if the given name was "BB-8" (hard difficulty)
+        """
         match name:
             case 'C3PO':
                 return 'min'
@@ -298,6 +447,16 @@ class Computer(Player):
                 return 'smart'
             
     def minLetters(self,validWords: set) -> tuple:
+        """
+        Implements the "Min" algorithm. Finds the smallest valid word that is part of the greek language and can derive from the computer's hand.
+
+        Parameters:
+        -validWords: the words of the greek alphabet
+
+        Returns:
+        - (word, score): The word that was created and the score of the word
+        - (None, 0): if no word could derive
+        """
         for length in range(2,len(self.hand)+1):
             for perm in it.permutations(self.hand,length):
                 word = ''.join(perm)
@@ -306,6 +465,16 @@ class Computer(Player):
         return None, 0
 
     def maxLetters(self,validWords: set) -> tuple:
+        """
+        Implements the "Max" algorithm. Finds the biggest valid word that is part of the greek language and can derive from the computer's hand.
+
+        Parameters:
+        -validWords: the words of the greek alphabet
+
+        Returns:
+        - (word, score): The word that was created and the score of the word
+        - (None, 0): if no word could derive
+        """
         for length in range(len(self.hand), 1, -1):
             for perm in it.permutations(self.hand, length):
                 word = ''.join(perm)
@@ -314,6 +483,16 @@ class Computer(Player):
         return None, 0
 
     def smart(self,validWords: set) -> tuple:
+        """
+        Implements the "Smart" algorithm. Finds the valid word with the most points that is part of the greek language and can derive from the computer's hand.
+
+        Parameters:
+        -validWords: the words of the greek alphabet
+
+        Returns:
+        - (word, score): The word that was created and the score of the word
+        - (None, 0): if no word could derive
+        """
         bestWord = None
         bestScore = 0
         for length in range(len(self.hand),1,-1):
@@ -327,6 +506,12 @@ class Computer(Player):
         return bestWord, bestScore
     
     def play(self, word_set: set):
+        """
+        Executes the Min, Max or Smart algorithm, depending on the picked mode
+
+        Parameters:
+        - word_set: Set of valid words from greek alphabet
+        """
         match self.mode:
             case 'min':
                 return self.minLetters(word_set)
