@@ -119,6 +119,8 @@ class Game():
             self.computer = Computer('C3PO', 'min')
 
         while True:
+            humanCanPlay = False
+            computerCanPlay = False
 
             #HUMAN ACTIONS
             while True:
@@ -130,13 +132,19 @@ class Game():
                 response, option = self.human.play(word,self.wordsSet)
 
                 if not response and option == 'Change':
-                    self.refillHand(self.human)
+                    if len(self.sak) == 0:
+                        print(f'Δεν υπάρχουν άλλα γράμματα για αλλαγή, χάνεις την σειρά σου')
+                    else:
+                        self.sak.putBackLetters(self.human.hand)
+                        self.human.hand = []
+                        self.refillHand(self.human)
                     break
                 elif not response and option == 'End':
                     self.end()
                 elif response and option == 'Valid':
+                    humanCanPlay = True
                     score = self.human.calculateScore(word)
-                    self.addScore()
+                    self.human.addScore(score)
                     self.human.hand = self.human.hand - list(word)
                     self.refillHand(self.human)
                     print(f'Πόντοι λέξης: {score}')
@@ -146,15 +154,36 @@ class Game():
                     print(f'Δεν υπάρχει η λέξη που πληκτρολόγησες, προσπάθησε ξανά!')
 
             #Computer actions
-            
-           
+            self.computer.__repr__()
+            computerWord, computerScore = self.computer.play(self.wordsSet)
+            if computerWord is None:
+                if len(self.sak) == 0:
+                    self.end()
+                else:
+                    print(f'{self.computer.name} δεν βρήκε λέξη, αλλάζει γράμματα!')
+                    self.sak.putBackLetters(self.computer.hand)
+                    self.computer.hand = []
+                    self.refillHand(self.computer)
+            else:
+                computerCanPlay = True
+                self.computer.addScore(computerScore)
+                self.computer.hand = self.computer.hand - list(computerWord)
+                self.refillHand(self.computer)
+                print(f'Πόντοι λέξης: {computerScore}')
+                self.computer.__repr__()
+
+            if self.isGameOver():
+                self.end()
 
 
-
-            
-                    
-                        
-
+    def isGameOver(self, humanCanPlay: bool, computerCanPlay: bool) -> bool:
+        if not humanCanPlay and not computerCanPlay:
+            return True
+        if len(self.sak) == 0 and len(self.human) == 0:
+            return True
+        if len(self.sak) == 0 and len(self.computer) == 0:
+            return True
+        return False
 
     def end(self):
         pass
@@ -296,6 +325,16 @@ class Computer(Player):
                         bestScore = score
                         bestWord = word
         return bestWord, bestScore
+    
+    def play(self, word_set: set):
+        match self.mode:
+            case 'min':
+                return self.minLetters(word_set)
+            case 'max':
+                return self.maxLetters(word_set)
+            case 'smart':
+                return self.smart(word_set)
+        
     
 
 
