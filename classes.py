@@ -1,6 +1,7 @@
 import itertools as it
 import json
 import random
+from collections import Counter
 from abc import ABC, abstractmethod
 
 class Game():
@@ -109,14 +110,50 @@ class Game():
             print('Το αρχείο δεν βρέθηκε')
             return set()
         
-
+    def refillHand(self,player : Player):
+        needed = min(7-len(player), len(self.sak))
+        player.hand+= self.sak.getLetters(needed)
 
     def run(self):     
         if self.computer is None:
             self.computer = Computer('C3PO', 'min')
 
         while True:
-            pass
+
+            #HUMAN ACTIONS
+            while True:
+                self.human.__repr__()
+                print(f'Αν θέλεις να αλλάξεις τα γράμματά σου, πληκτρολόγησε "P"')
+                print(f'Αν θέλεις να παραιτηθείς πληκτρολόγησε "Q"')
+                print(f'Αν θέλεις να παίξεις, απλά πληκτρολόγησε την λέξη σου')
+                word = input('ΛΕΞΗ Ή ΕΠΙΛΟΓΉ: ').upper()
+                response, option = self.human.play(word,self.wordsSet)
+
+                if not response and option == 'Change':
+                    self.refillHand(self.human)
+                    break
+                elif not response and option == 'End':
+                    self.end()
+                elif response and option == 'Valid':
+                    score = self.human.calculateScore(word)
+                    self.addScore()
+                    self.human.hand = self.human.hand - list(word)
+                    self.refillHand(self.human)
+                    print(f'Πόντοι λέξης: {score}')
+                    self.human.__repr__()
+                    break
+                else:
+                    print(f'Δεν υπάρχει η λέξη που πληκτρολόγησες, προσπάθησε ξανά!')
+
+            #Computer actions
+            
+           
+
+
+
+            
+                    
+                        
 
 
     def end(self):
@@ -167,7 +204,10 @@ class Player():
         self.score = 0
 
     def __repr__(self):
-        pass
+        print(f'******************************************************************')
+        print(f'*** Παίκτης: {self.name} *** Σκορ: {self.getScore()}')
+        print(f'Γράμματα: {self.hand}')
+        print(f'\n*****************************************************************')
 
     def getScore(self):
         return self.score
@@ -178,17 +218,41 @@ class Player():
     def calculateScore(self,word: str) -> int:
         return sum(SakClass.lets.get(letter)[1] for letter in word)
     
+    def __len__(self):
+        return len(self.hand)
+    
+    def __sub__(self,word: str):
+        newHand = self.hand.copy()
+        for letter in word:
+            newHand.remove(letter)
+        self.hand = newHand
+        return self
+    
     @abstractmethod
     def play(self,sak,word_set):
         pass
+
 
 
 class Human(Player):
     def __init__(self,name):
         super().__init__(name)
 
-    def play():
-        pass
+    def isValidWord(self,word: str) -> bool:
+        return Counter(word)<= Counter(self.hand)
+
+    def play(self, word:str, validWords: set) -> bool:
+
+        match word:
+                case 'P':
+                    return False, 'Change'
+                case 'Q':
+                    return False, 'End'
+                case _:
+                    if word in validWords and self.isValidWord(word):
+
+                        return True, 'Valid'
+                    return True, 'Invalid'
 
 class Computer(Player):
     def __init__(self, name='C3PO'):
