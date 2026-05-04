@@ -172,7 +172,7 @@ class Game():
                 print(f'Πόντοι λέξης: {computerScore}')
                 self.computer.__repr__()
 
-            if self.isGameOver():
+            if self.isGameOver(humanCanPlay, computerCanPlay):
                 self.end()
 
 
