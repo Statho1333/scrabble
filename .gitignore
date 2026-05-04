@@ -9,3 +9,4 @@ wheels/
 # Virtual environments
 .venv
 pyproject.toml
+greek7.txt
