@@ -1,11 +1,32 @@
 import itertools as it
+import os
 import json
 import random
+import sys
 from collections import Counter
 from abc import ABC, abstractmethod
 
-class Game():
+def documentation():
+    """
+    -Κλάσεις: Game, SakClass, Player, Human, Computer
+    -Κληρονομικότητα: Player παράγωγη κλάση της ABC (για να εφαρμόσω abstract method την play, όπως κάναμε στην java)
+                      Computer, Human παράγωγες κλάσεις της Player.
+    -Επέκταση Μεθόδων: έχω επεκτείνει την play, δημιουργόντας πολυμορφισμό στον τρόπο που καλείται από τις Human και Computer.
+    -Υπερφόρτωση τελεστών: Έχω εφαρμόσει 2 υπερφορτώσεις τελεστών.
+                            1. Στην build-in συνάρτηση __len__ στην κλάση Player ώστε όταν καλείς len(self.player) να σου επιστρέφει το μήκος του χεριού παίκτη. Η ίδια υπερφόρτωση έγινε και για την SakClass που σου επιστρέφει πόσα γράμματα έμειναν στο σακούλι. Αντί για len(self.sak.sak) πλέον με len(self.sak) έχεις το ίδιο αποτέλεσμα.
+                            2. Στην build-in συνάρτηση __sub__ πάλι στην κλάση Player, με σκοπό να μπορεί κάποιος έυκολα να αφαιρεί από το χέρι του παίκτη, τα γράμματα που χρησιμοποίησε για να παίξει μία λέξη. Δλδ μπορεί κάποιος πλέον εύκολα να πει self.human-=word.
+    -Decorators: 1. staticmethod η calculateScore όπου υπολογίζει τους βαθμούς μία λέξης στην κλάση Player
+                 2. abstract method η play μέσα στην κλάση Player
+    -Δομή λέξεων: Επιλέχτηκε set για να τηρούνται οι απαιτήσεις αναζήτησης Ο(1).
+    -Αλγόριθμος Πολιτικής Παιχνιδιού: Αλγόριθμος 1 (Min - Max - Smart)
+    -Πρότυπο Mediator: Η κλάση Game γνωρίζει όλα τα αντικείμενα και διαχειρίζεται την επικοινωνία μεταξύ τους. Οι παίκτες δεν επικοινωνούν απευθείας μεταξύ τους. Επίσης η Game διαχειρίζεται το SakClass και μοιράζει αυτή γράμματα στους παίκτες. Ελέγχει την εγκυρότητα των λέξεων και τους προσθέτει/αφαιρεί πόντους. Τέλος ελέγχει πότε τελειώνει το παιχνίδι, και είναι υπεύθυνη για την ανακοίνωση των αποτελεσμάτων.
+    """
 
+
+class Game():
+    """
+    Mediator class that handles all the communication between the Players objects and the SakClass object.
+    """
     def __init__(self):
         self.sak = SakClass()
         self.wordsSet = self.loadWords()
@@ -13,15 +34,26 @@ class Game():
         self.computer = None
         self.onGoingGame = False
 
-
+    def __repr__(self):
+        """Prints basic inforamtion about the game, if it is set."""
+        print(f'Game Scrabble')
+        if self.sak is not None:
+            print(f'Στο σακουλάκι απομένουν {len(self.sak)} γράμματα')
+        if self.human is not None:
+            print(f'Παίκτης: {self.human.name} | Σκορ: {self.human.score}')
+        else:
+            print(f'Παίκτης: Δεν έχει οριστεί')
+    
+        if self.computer is not None:
+            print(f'Αντίπαλος: {self.computer.name} | Δυσκολία: {self.computer.mode} | Σκορ: {self.computer.score}')
+        else:
+            print(f'Αντίπαλος: Δεν έχει οριστεί')
 
     def showStartingInterface(self):
-
+        """
+        Shows the starting interface of the project guide. Directs the user to the next menu, according to his choice.
+        """
         choices = ('1','2','3','q')
-
-        humanName = input('Το όνομά σου είναι: ')
-        self.human = Human(humanName)
-
 
         while True:
 
@@ -56,53 +88,87 @@ class Game():
                     self.end()
 
     def showScore(self):
+        """
+        Refers to option 1: Σκορ in project guide. Shows the scores of the players
+        """
+        if self.human is None:
+            print(f'Δεν υπάρχει ακόμα παιχνίδι!')
+            return
         print(f'{self.human.name} score is: {self.human.getScore()}')
-        print(f'{self.computer.name} score is: {self.computer.getScore()}')
-
+        if self.computer is not None:
+            print(f'{self.computer.name} score is: {self.computer.getScore()}')
+        else:
+            print(f'Δεν υπάρχει αντίπαλος ακόμα')
 
     def setup(self):
+        """
+        Refers to option 2: in project guide.
+        Basic configuration for the game to run.
+        Sets players name and computers name. From the name of the computer derives the gaming algorithm which is equal to difficulty.
+        Reprompts user for choices that are not valid.
+        There is an option to load previus game.
+        """
         choices = ('1','2','3','b')
 
-        while True:
-            print(f'***** ΕΠΙΛΕΞΤΕ ΑΝΤΙΠΑΛΟ *****')
-            print(f'Επιλέξτε έναν από τους παρακάτω αντιπάλους-ρομπότ!')
-            print(f'1: C3PO Human Cyborg Relationships. Droid το οποίο γνωρίζει πάνω από 6 εκατομμύρια μορφές επικοινωνίας. Μεταξύ μας δεν είναι και πολύ έξυπνο')
-            print(f'2: R2D2. Droid το οποίο δεν μιλάει αρκετά παράξενα αλλά είναι εμφανές πιο έξυπνο από τον C3PO')
-            print(f'3: BB-8. Το πιο έξυπνο από όλα τα droids')
-            print(f'b: Επιστροφή στο αρχικό menou')
+        if input(f'Θέλεις να φορτώσεις αποθηκευμένο παιχνίδι; (Υ/Ν) ').upper() == 'Y':
+            if not self.loadGame():
+                return
+            self.run()
+        
+        else:
 
-            choice = input()
+            humanName = input(f'Το όνομά σου είναι: ')
+            self.human = Human(humanName)
 
             while True:
-                if choice not in choices:
-                    print(f'Λάθος επιλογή, επιλέξτε έναν από τους παρακάτω αντιπάλους-ρομποτ.')
-                    print(f'1: C3PO Human Cyborg Relationships. Droid το οποίο γνωρίζει πάνω από 6 εκατομμύρια μορφές επικοινωνίας. Μεταξύ μας δεν είναι και πολύ έξυπνο')
-                    print(f'2: R2D2. Droid το οποίο δεν μιλάει αρκετά παράξενα αλλά είναι εμφανές πιο έξυπνο από τον C3PO')
-                    print(f'3: BB-8. Το πιο έξυπνο από όλα τα droids')
-                    print(f'b: Επιστροφή στο αρχικό menou')
-                    choice = input()
-                else:
-                    break
-            
-            if choice == 'b':
-                return
-            else:
-                match choice:
-                    case '1':
-                        computerName = 'C3PO'
-                        algo = 'min'
-                    case '2':
-                        computerName = 'R2D2'
-                        algo = 'max'
-                    case '3':
-                        computerName = 'BB-8'
-                        algo = 'smart'
+                print(f'***** ΕΠΙΛΕΞΤΕ ΑΝΤΙΠΑΛΟ *****')
+                print(f'Επιλέξτε έναν από τους παρακάτω αντιπάλους-ρομπότ!')
+                print(f'1: C3PO Human Cyborg Relationships. Droid το οποίο γνωρίζει πάνω από 6 εκατομμύρια μορφές επικοινωνίας. Μεταξύ μας δεν είναι και πολύ έξυπνο')
+                print(f'2: R2D2. Droid το οποίο δεν μιλάει αρκετά παράξενα αλλά είναι εμφανές πιο έξυπνο από τον C3PO')
+                print(f'3: BB-8. Το πιο έξυπνο από όλα τα droids')
+                print(f'b: Επιστροφή στο αρχικό menou')
+
+                choice = input()
+
+                while True:
+                    if choice not in choices:
+                        print(f'Λάθος επιλογή, επιλέξτε έναν από τους παρακάτω αντιπάλους-ρομποτ.')
+                        print(f'1: C3PO Human Cyborg Relationships. Droid το οποίο γνωρίζει πάνω από 6 εκατομμύρια μορφές επικοινωνίας. Μεταξύ μας δεν είναι και πολύ έξυπνο')
+                        print(f'2: R2D2. Droid το οποίο δεν μιλάει αρκετά παράξενα αλλά είναι εμφανές πιο έξυπνο από τον C3PO')
+                        print(f'3: BB-8. Το πιο έξυπνο από όλα τα droids')
+                        print(f'b: Επιστροφή στο αρχικό menou')
+                        choice = input()
+                    else:
+                        break
                 
-                self.computer = Computer(self.computerName, algo)
-                return
+                if choice == 'b':
+                    return
+                else:
+                    match choice:
+                        case '1':
+                            computerName = 'C3PO'
+                        case '2':
+                            computerName = 'R2D2'
+                        case '3':
+                            computerName = 'BB-8'
+
+                    
+                    self.computer = Computer(computerName)
+                    self.sak = SakClass()
+                    self.human.hand = self.sak.getLetters(7)
+                    self.computer.hand = self.sak.getLetters(7)
+                    self.human.score = 0
+                    self.computer.score = 0
+                    return
 
 
     def loadWords(self) -> set:
+        """
+        Loads the 'greek7.txt' file.
+        
+        Returns:
+        - a set of words if file found, empty set otherwise
+        """
         try:
             with open('greek7.txt', 'r', encoding='utf-8') as f:
                 return {line.strip() for line in f}
@@ -111,16 +177,40 @@ class Game():
             return set()
         
     def refillHand(self,player : Player):
+        """
+        Refills the hand of a Player. Checks if it can change all 7 letters from the hand of the player. If less than 7 letters are in the sak, reffils only those.
+
+        Parameters:
+        - player: an Instance of Human or Computer that calls the function
+
+        Return:
+        A new hand for the player 
+        """
         needed = min(7-len(player), len(self.sak))
         player.hand+= self.sak.getLetters(needed)
 
-    def run(self):     
+    def run(self):
+        """
+        Refers to option 3 in project guide.
+        Controls the flow of the game between the human and the computer Player.
+        Automatically checks if the game has come to a dead-end and calls announces the winner.
+        """
+        if self.human is None:
+            print(f'Δεν έχεις ρυθμίσει ακόμα παίκτη')
+            return
+
         if self.computer is None:
-            self.computer = Computer('C3PO', 'min')
+            self.computer = Computer('C3PO')
+
+        if len(self.human)==0:
+            self.human.hand = self.sak.getLetters(7)
+        if len(self.computer) == 0:
+            self.computer.hand = self.sak.getLetters(7)
 
         while True:
             humanCanPlay = False
             computerCanPlay = False
+            humanChanged = False
 
             #HUMAN ACTIONS
             while True:
@@ -132,6 +222,7 @@ class Game():
                 response, option = self.human.play(word,self.wordsSet)
 
                 if not response and option == 'Change':
+                    humanChanged = True
                     if len(self.sak) == 0:
                         print(f'Δεν υπάρχουν άλλα γράμματα για αλλαγή, χάνεις την σειρά σου')
                     else:
@@ -140,12 +231,13 @@ class Game():
                         self.refillHand(self.human)
                     break
                 elif not response and option == 'End':
-                    self.end()
+                    self.tapOut()
+                    return
                 elif response and option == 'Valid':
                     humanCanPlay = True
                     score = self.human.calculateScore(word)
                     self.human.addScore(score)
-                    self.human.hand = self.human.hand - list(word)
+                    self.human = self.human - word
                     self.refillHand(self.human)
                     print(f'Πόντοι λέξης: {score}')
                     self.human.__repr__()
@@ -153,12 +245,16 @@ class Game():
                 else:
                     print(f'Δεν υπάρχει η λέξη που πληκτρολόγησες, προσπάθησε ξανά!')
 
+            #check after human
+            if len(self.sak) <=1 and len(self.human) <=1:
+                self.end(gameOver=True)
+
             #Computer actions
             self.computer.__repr__()
             computerWord, computerScore = self.computer.play(self.wordsSet)
             if computerWord is None:
                 if len(self.sak) == 0:
-                    self.end()
+                    self.end(gameOver=True)
                 else:
                     print(f'{self.computer.name} δεν βρήκε λέξη, αλλάζει γράμματα!')
                     self.sak.putBackLetters(self.computer.hand)
@@ -167,17 +263,32 @@ class Game():
             else:
                 computerCanPlay = True
                 self.computer.addScore(computerScore)
-                self.computer.hand = self.computer.hand - list(computerWord)
+                self.computer = self.computer - computerWord
                 self.refillHand(self.computer)
+                print(f'O {self.computer.name} έπεξε την λέξη: {computerWord}!')
                 print(f'Πόντοι λέξης: {computerScore}')
                 self.computer.__repr__()
 
-            if self.isGameOver(humanCanPlay, computerCanPlay):
-                self.end()
+            if self.isGameOver(humanCanPlay, computerCanPlay, humanChanged):
+                self.end(gameOver=True)
 
 
-    def isGameOver(self, humanCanPlay: bool, computerCanPlay: bool) -> bool:
-        if not humanCanPlay and not computerCanPlay:
+    def isGameOver(self, humanCanPlay: bool, computerCanPlay: bool, humanChanged: bool) -> bool:
+        """
+        Checks when the criteria is met to end game automatically.
+
+        Parameter:
+        - humanCanPlay: bool.
+        - computerCanPlay: bool
+        - humanChanged: bool
+
+        Returns:
+        - True, if sak is empty and hand of human or computer is empty or when human cant and computer cant play and human couldnt change hand.
+        - False, otherwise
+        """
+        #print(f'DEBUG: humanCanPlay={humanCanPlay}, computerCanPlay={computerCanPlay}, humanChanged={humanChanged}')
+        #print(f'DEBUG: sak={len(self.sak)}, human hand={len(self.human)}, computer hand={len(self.computer)}')
+        if not humanCanPlay and not computerCanPlay and not humanChanged:
             return True
         if len(self.sak) == 0 and len(self.human) == 0:
             return True
@@ -185,8 +296,107 @@ class Game():
             return True
         return False
 
-    def end(self):
-        pass
+    def printEndResults(self):
+        """
+        Prints info for the winner
+        """
+        print(f'****************************************************')
+        print(f'ΤΕΛΟΣ ΠΑΙΧΝΙΔΙΟΥ')
+        print(f'Τελικο σκορ')
+        print(f'{self.human.name}: {self.human.score} πόντοι')
+        print(f'{self.computer.name}: {self.computer.score} πόντοι')
+
+        if self.human.score > self.computer.score:
+            print(f'Νικητής ο {self.human.name}!!! Συγχαρητήρια!!!')
+        elif self.human.score<self.computer.score:
+            print(f'Κρίμα σε νίκησε ο {self.computer.name}. Προσπάθησε ξανά!!')
+        else:
+            print(f'Ισοπαλία!!!!!!!!')
+
+    def end(self, gameOver=False):
+        """
+        Ends game. 
+
+        Parameters:
+        - gameOver: bool. Defines if game was ended normally, or the user exited the game.
+        If game ended normally, prints the winner, and removes old save, otherwise saves game and exits game.
+        """
+        if gameOver:
+            self.printEndResults()
+            if os.path.exists('save.json'):
+                os.remove('save.json')
+        else:
+            self.saveGame()
+
+        print(f'Τα λέμε την επόμενη φορά!')
+        sys.exit()
+
+
+    def saveGame(self):
+        """
+        Saves game status in a json file
+        """
+        data = {
+            'sak': self.sak.sak,
+            'humanName': self.human.name,
+            'humanHand': self.human.hand,
+            'humanScore': self.human.score,
+            'computerName': self.computer.name,
+            'computerHand': self.computer.hand,
+            'computerScore': self.computer.score,
+            'computerMode': self.computer.mode
+        }
+        with open('save.json', 'w', encoding='utf-8') as f:
+            json.dump(data,f,ensure_ascii=False)
+
+    def loadGame(self) -> bool:
+        """
+        Loads game from josn file 'save.json'
+        
+        Returns:
+        - True: if load was successful
+        - False: if file doesnt exist, or error happened in loading precedure
+        """
+        if not os.path.exists('save.json'):
+            print(f'Δεν υπάρχει το αρχείο "save.json" για να συνεχίσετε το παιχνίδι σας.')
+            print(f'Υποχρεωτικά ξεκινήστε καινούργιο παιχνίδι')
+            return False
+        
+        try:
+            with open('save.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self.sak.sak = data['sak']
+
+
+                self.human = Human(data['humanName'])
+                self.human.hand = data['humanHand']
+                self.human.score = data['humanScore']
+
+                self.computer = Computer(data['computerName'])
+                self.computer.hand = data['computerHand']
+                self.computer.score = data['computerScore']
+                self.computer.mode = data['computerMode']
+            return True
+        except:
+            print(f'Σφάλμα κατά την φόρτωση του αρχείου')
+            return False
+        
+    def tapOut(self):
+        """
+        Defines what happen when the user surrender.
+        Sets the hand of human and computer to [], and their scores to 0.
+        Remakes a new Sak instance, with new letters.
+        Removes the older saved game, if it existed
+        """
+        print(f'Κρίμα! Έχασες γιατί παραιτήθηκες.')
+        self.human.score = 0
+        self.computer.score = 0
+        self.human.hand = []
+        self.computer.hand = []
+        self.sak = SakClass()
+        if os.path.exists('save.json'):
+            os.remove('save.json')
+        return
 
 
     
@@ -215,10 +425,10 @@ class SakClass():
         Constructor of SakClass.
         Randomizes a sak.
         """
-        self.sak = self.randomizeSak(SakClass.lets)
+        self.sak = self.randomizeSak()
 
     #takes as input a random dictionary of letters, flattens it and shuffles it
-    def randomizeSak(self, letters: dict) -> list:
+    def randomizeSak(self) -> list:
         """
         Function that flattens the letters dictionary, converting it to a string, and shuffles it,cdepending on the occurences of each letter
 
@@ -228,7 +438,7 @@ class SakClass():
         Returns:
         sak: a shuffled list of letters
         """
-        sak = [letter for letter, (count, points) in letters.items() for _ in range(count)]
+        sak = [letter for letter, (count, points) in SakClass.lets.items() for _ in range(count)]
         random.shuffle(sak)
         return sak
 
@@ -274,10 +484,10 @@ class SakClass():
         return len(self.sak)
 
 
-class Player():
+class Player(ABC):
     """
     Basic class of players, from which derives Human and Computer
-
+    Cant create directly Player instance, only Human or Computer
     """
     def __init__(self, name):
         """
@@ -312,9 +522,11 @@ class Player():
         """
         self.score+=points
 
-    def calculateScore(self,word: str) -> int:
+    @staticmethod
+    def calculateScore(word: str) -> int:
         """
         Calculates the points of a word
+        Static Method.
 
         Returns:
         -int: the sum of the letters
@@ -351,8 +563,7 @@ class Player():
         return self
     
     @abstractmethod
-
-    def play(self,sak,word_set):
+    def play(self,word: str, word_set: set):
         pass
 
 
@@ -526,7 +737,5 @@ class Computer(Player):
 
 
 
-game = Game()
-game.loadWords()
-print(game.wordsSet)
+
 
